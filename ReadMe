@@ -1,0 +1,11 @@
+Ryan Mckenzie
+Hello So this is my Project
+The closed tuna fish cans are the good items
+use the arrow keys to move
+the open tuna cans are the bad items
+keep in mind the enemies on the second page do spawn in random locations and they do not do damage
+once you collect the 9 tuna cans a portal will open up for the second map and you must find it
+if you collect an open tuna can it will end the game
+this is a very basic prototype so because of random spawns the tuna cans might overlap I did not really have time to fix it
+I did use AI in some of the difficult and tedious portions of my code which explains some of the unclear variables and ran out of time to fix but I tried to organize my code in a clean manner
+I also tried to do some cool collision stuff with walls in the map, did my own research for this implementation
