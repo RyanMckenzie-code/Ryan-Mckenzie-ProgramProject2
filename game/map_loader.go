@@ -13,6 +13,9 @@ import (
 	"github.com/solarlune/resolv"
 )
 
+// -------------------------------
+// Data structures
+// -------------------------------
 type PlacedItem struct {
 	X, Y float64
 	Img  *ebiten.Image
@@ -35,7 +38,7 @@ type MapData struct {
 	Items       []PlacedItem
 	BadItems    []PlacedItem
 	Collected   int
-	Portal      *Portal // 👈 add this
+	Portal      *Portal
 	EmptyTiles  [][2]int
 	PortalTextX float64
 	PortalTextY float64
@@ -44,7 +47,50 @@ type MapData struct {
 
 var GameOver bool
 
-// scaleImage takes an ebiten.Image and a scale factor, and returns a new scaled image.
+// -------------------------------
+// Helpers for item hitboxes
+// -------------------------------
+const (
+	itemBoxW         = 21.0
+	itemBoxH         = 19.0
+	badItemBoxW      = 23.0 // slightly wider for bad item PNG
+	badItemBoxH      = 18.0
+	badItemYOffset   = 8.0 // adjust downward if image sits higher visually
+	badItemXOffset   = -8.0
+	portalBoxW       = 16.0 // width of portal hitbox
+	portalBoxH       = 16.0 // height of portal hitbox
+	portalBoxYOffset = 0.0  // nudge downward if needed
+)
+
+// Good item box (centered)
+func makeItemRect(x, y float64, img *ebiten.Image) resolv.IShape {
+	iw := float64(img.Bounds().Dx())
+	ih := float64(img.Bounds().Dy())
+	offX := (iw - itemBoxW) / 2.0
+	offY := (ih - itemBoxH) / 2.0
+	return resolv.NewRectangle(x+offX, y+offY, itemBoxW, itemBoxH)
+}
+
+// Bad item box (slightly wider and vertically offset)
+func makeBadItemRect(x, y float64, img *ebiten.Image) resolv.IShape {
+	iw := float64(img.Bounds().Dx())
+	ih := float64(img.Bounds().Dy())
+	offX := (iw-badItemBoxW)/2.0 + badItemXOffset
+	offY := (ih-badItemBoxH)/2.0 + badItemYOffset
+	return resolv.NewRectangle(x+offX, y+offY, badItemBoxW, badItemBoxH)
+}
+
+func makePortalRect(x, y float64, img *ebiten.Image) resolv.IShape {
+	iw := float64(img.Bounds().Dx())
+	ih := float64(img.Bounds().Dy())
+	offX := (iw - portalBoxW) / 2.0
+	offY := (ih-portalBoxH)/2.0 + portalBoxYOffset
+	return resolv.NewRectangle(x+offX, y+offY, portalBoxW, portalBoxH)
+}
+
+// -------------------------------
+// Image scaling helper
+// -------------------------------
 func scaleImage(img image.Image, scale float64) *ebiten.Image {
 	original := ebiten.NewImageFromImage(img)
 
@@ -66,6 +112,9 @@ func scaleImage(img image.Image, scale float64) *ebiten.Image {
 	return scaled
 }
 
+// -------------------------------
+// Map loading functions
+// -------------------------------
 func LoadMap() *MapData {
 	m, err := tiled.LoadFile("Assets/Maps/floor1.tmx", tiled.WithFileSystem(EmbeddedFS))
 	if err != nil {
@@ -199,20 +248,19 @@ func (md *MapData) loadCollision() {
 	}
 }
 
-// Randomly spawn items (fish cans) on non-solid tiles
+// -------------------------------
+// Spawn items (good + bad)
+// -------------------------------
 func (md *MapData) spawnItems() {
-	// --- Load and scale the fish image ---
 	data, err := EmbeddedFS.ReadFile("Assets/Sprites/tuna_closed.png")
 	if err != nil {
 		log.Printf("⚠️ Could not load fish item: %v", err)
 		return
 	}
 	img, _, _ := image.Decode(bytes.NewReader(data))
-	fishImg := scaleImage(img, 0.2) // 👈 just one line now
+	fishImg := scaleImage(img, 0.2)
 
 	var emptyTiles [][2]int
-
-	// go through every tile in the map
 	for y := 0; y < md.Map.Height; y++ {
 		for x := 0; x < md.Map.Width; x++ {
 			tileX := float64(x * md.TileW)
@@ -234,7 +282,6 @@ func (md *MapData) spawnItems() {
 	}
 	md.EmptyTiles = emptyTiles
 
-	// --- Spawn 15 fish items ---
 	for i := 0; i < 15 && len(emptyTiles) > 0; i++ {
 		idx := rand.IntN(len(emptyTiles))
 		tile := emptyTiles[idx]
@@ -247,16 +294,14 @@ func (md *MapData) spawnItems() {
 		})
 	}
 
-	// --- Load and scale the bad item image ---
 	dataBad, err := EmbeddedFS.ReadFile("Assets/Sprites/tuna_open.png")
 	if err != nil {
 		log.Printf("⚠️ Could not load bad item image: %v", err)
 		return
 	}
 	imgBad, _, _ := image.Decode(bytes.NewReader(dataBad))
-	badImg := scaleImage(imgBad, 0.2) // 👈 same scale as fish
+	badImg := scaleImage(imgBad, 0.2)
 
-	// --- Spawn 5 bad items ---
 	for i := 0; i < 5 && len(emptyTiles) > 0; i++ {
 		idx := rand.IntN(len(emptyTiles))
 		tile := emptyTiles[idx]
@@ -272,41 +317,36 @@ func (md *MapData) spawnItems() {
 	md.EmptyTiles = emptyTiles
 }
 
-func (md *MapData) CheckItemCollection(player *Player) {
+// -------------------------------
+// Collision + collection
+// -------------------------------
+func (md *MapData) CheckItemCollection(player *Player, g *Game) {
 	var remaining []PlacedItem
 	var lastCollectedX, lastCollectedY float64
 	collectedThisFrame := false
-
 	playerBox := player.Box
 
 	for _, item := range md.Items {
-		itemRect := resolv.NewRectangle(
-			item.X, item.Y,
-			float64(item.Img.Bounds().Dx()), float64(item.Img.Bounds().Dy()),
-		)
-
+		itemRect := makeItemRect(item.X, item.Y, item.Img)
 		if playerBox.IsIntersecting(itemRect) {
 			if md.Collected < 9 {
 				md.Collected++
 				collectedThisFrame = true
 				lastCollectedX = item.X
 				lastCollectedY = item.Y
+				g.AddFloatText(player.X+8, player.Y-10)
 			}
 			continue
 		}
-
 		remaining = append(remaining, item)
 	}
-
 	md.Items = remaining
 
-	// Save the position of the last collected fish
 	if collectedThisFrame {
 		md.PortalTextX = lastCollectedX
 		md.PortalTextY = lastCollectedY
 	}
 
-	// If we just collected the 9th fish, spawn the portal somewhere random
 	if collectedThisFrame && md.Collected == 9 && md.Portal == nil {
 		data, err := EmbeddedFS.ReadFile("Assets/Sprites/portal.png")
 		if err != nil {
@@ -322,43 +362,31 @@ func (md *MapData) CheckItemCollection(player *Player) {
 		}
 
 		randomTile := md.EmptyTiles[rand.IntN(len(md.EmptyTiles))]
-
 		md.Portal = &Portal{
 			X:      float64(randomTile[0] * md.TileW),
 			Y:      float64(randomTile[1] * md.TileH),
 			Img:    portalImg,
 			Active: true,
 		}
-
 		log.Println("🌀 Portal spawned randomly! Text remains at last collected fish.")
 	}
-	// --- Check if player hit any bad items ---
-	// --- Check if player hit any bad items ---
+
+	// --- Unified bad item collision ---
 	var remainingBad []PlacedItem
 	for _, bad := range md.BadItems {
-		// offsets to adjust hitbox position
-		offsetX := 4.2  // move hitbox 5px left
-		offsetY := 18.0 // move hitbox 5px down
-
-		badRect := resolv.NewRectangle(
-			bad.X+offsetX,
-			bad.Y+offsetY,
-			float64(bad.Img.Bounds().Dx()),
-			float64(bad.Img.Bounds().Dy()),
-		)
-
+		badRect := makeBadItemRect(bad.X, bad.Y, bad.Img)
 		if player.Box.IsIntersecting(badRect) {
 			md.BadItems = nil
 			GameOver = true
-			log.Println(" Hit a bad can — GAME OVER")
+			log.Println("💀 Hit a bad can — GAME OVER")
 			return
 		}
-
 		remainingBad = append(remainingBad, bad)
 	}
 	md.BadItems = remainingBad
 }
 
+// -------------------------------
 func LoadMapFile(path string) *MapData {
 	m, err := tiled.LoadFile(path, tiled.WithFileSystem(EmbeddedFS))
 	if err != nil {
@@ -386,9 +414,9 @@ func LoadMapFile(path string) *MapData {
 	md.spawnItems()
 	return md
 }
+
 func (md *MapData) SpawnEnemies(count int) {
 	enemyFrames := LoadEnemySprites()
-
 	if len(md.EmptyTiles) == 0 {
 		log.Println(" No empty tiles available for enemies")
 		return

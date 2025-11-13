@@ -3,17 +3,17 @@
  <image source="../Tiles/Tileset6.png" width="352" height="160"/>
  <tile id="0">
   <properties>
-   <property name="solid" type="bool" value="false"/>
+   <property name="solid" type="bool" value="true"/>
   </properties>
  </tile>
  <tile id="1">
   <properties>
-   <property name="solid" type="bool" value="false"/>
+   <property name="solid" type="bool" value="true"/>
   </properties>
  </tile>
  <tile id="2">
   <properties>
-   <property name="solid" type="bool" value="false"/>
+   <property name="solid" type="bool" value="true"/>
   </properties>
  </tile>
  <tile id="3">
@@ -58,7 +58,7 @@
  </tile>
  <tile id="11">
   <properties>
-   <property name="solid" type="bool" value="false"/>
+   <property name="solid" type="bool" value="true"/>
   </properties>
  </tile>
  <tile id="12">
@@ -68,7 +68,7 @@
  </tile>
  <tile id="13">
   <properties>
-   <property name="solid" type="bool" value="false"/>
+   <property name="solid" type="bool" value="true"/>
   </properties>
  </tile>
  <tile id="14">
@@ -113,17 +113,17 @@
  </tile>
  <tile id="22">
   <properties>
-   <property name="solid" type="bool" value="false"/>
+   <property name="solid" type="bool" value="true"/>
   </properties>
  </tile>
  <tile id="23">
   <properties>
-   <property name="solid" type="bool" value="false"/>
+   <property name="solid" type="bool" value="true"/>
   </properties>
  </tile>
  <tile id="24">
   <properties>
-   <property name="solid" type="bool" value="false"/>
+   <property name="solid" type="bool" value="true"/>
   </properties>
  </tile>
  <tile id="25">
