@@ -146,3 +146,41 @@ func (p *Player) collides(solids []resolv.IShape) bool {
 	}
 	return false
 }
+func NewLanternPlayer(x, y float64) *Player {
+	p := &Player{
+		X:             x,
+		Y:             y,
+		HitboxOffsetX: 8,
+		HitboxOffsetY: 35,
+	}
+	p.Anim = loadLanternAnim()
+	p.Box = resolv.NewRectangle(
+		x+p.HitboxOffsetX, y+p.HitboxOffsetY,
+		16, 27,
+	)
+	return p
+}
+func loadLanternAnim() [][]*ebiten.Image {
+	data, _ := EmbeddedFS.ReadFile("Assets/Sprites/player_lantern.png")
+	img, _, err := image.Decode(bytes.NewReader(data))
+	if err != nil {
+		log.Fatal(err)
+	}
+	sheet := ebiten.NewImageFromImage(img)
+
+	cols := 12
+	rows := 4
+	frameW := sheet.Bounds().Dx() / cols
+	frameH := sheet.Bounds().Dy() / rows
+
+	out := make([][]*ebiten.Image, rows)
+	for row := 0; row < rows; row++ {
+		for col := 0; col < cols; col++ {
+			sx := col * frameW
+			sy := row * frameH
+			sub := sheet.SubImage(image.Rect(sx, sy, sx+frameW, sy+frameH)).(*ebiten.Image)
+			out[row] = append(out[row], sub)
+		}
+	}
+	return out
+}

@@ -57,9 +57,11 @@ const (
 	badItemBoxH      = 18.0
 	badItemYOffset   = 8.0 // adjust downward if image sits higher visually
 	badItemXOffset   = -8.0
-	portalBoxW       = 16.0 // width of portal hitbox
-	portalBoxH       = 16.0 // height of portal hitbox
-	portalBoxYOffset = 0.0  // nudge downward if needed
+	portalBoxW       = 12.0 // width of portal hitbox
+	portalBoxH       = 12.0 // height of portal hitbox
+	portalBoxYOffset = 0    // nudge downward if needed
+	heartBoxW        = 40.0
+	heartBoxH        = 40.0
 )
 
 // Good item box (centered)
@@ -86,6 +88,15 @@ func makePortalRect(x, y float64, img *ebiten.Image) resolv.IShape {
 	offX := (iw - portalBoxW) / 2.0
 	offY := (ih-portalBoxH)/2.0 + portalBoxYOffset
 	return resolv.NewRectangle(x+offX, y+offY, portalBoxW, portalBoxH)
+}
+func makeHeartRect(x, y float64, img *ebiten.Image) resolv.IShape {
+	iw := float64(img.Bounds().Dx())
+	ih := float64(img.Bounds().Dy())
+
+	offX := (iw - heartBoxW) / 2
+	offY := (ih - heartBoxH) / 2
+
+	return resolv.NewRectangle(x+offX, y+offY, heartBoxW, heartBoxH)
 }
 
 // -------------------------------
@@ -147,7 +158,7 @@ func loadExternalTilesets(m *tiled.Map) {
 	for _, ts := range m.Tilesets {
 		if ts.Source != "" && ts.Tiles == nil {
 			tsxPath := filepath.ToSlash(filepath.Join("Assets/Maps", ts.Source))
-			fmt.Println("📦 Loading external tileset:", tsxPath)
+			fmt.Println("Loading external tileset:", tsxPath)
 			tsx, err := tiled.LoadTilesetFile(tsxPath, tiled.WithFileSystem(EmbeddedFS))
 			if err != nil {
 				log.Fatalf(" Failed to load tileset %s: %v", tsxPath, err)
@@ -296,7 +307,7 @@ func (md *MapData) spawnItems() {
 
 	dataBad, err := EmbeddedFS.ReadFile("Assets/Sprites/tuna_open.png")
 	if err != nil {
-		log.Printf("⚠️ Could not load bad item image: %v", err)
+		log.Printf(" Could not load bad item image: %v", err)
 		return
 	}
 	imgBad, _, _ := image.Decode(bytes.NewReader(dataBad))
@@ -350,7 +361,7 @@ func (md *MapData) CheckItemCollection(player *Player, g *Game) {
 	if collectedThisFrame && md.Collected == 9 && md.Portal == nil {
 		data, err := EmbeddedFS.ReadFile("Assets/Sprites/portal.png")
 		if err != nil {
-			log.Printf("⚠️ Could not load portal image: %v", err)
+			log.Printf(" Could not load portal image: %v", err)
 			return
 		}
 		img, _, _ := image.Decode(bytes.NewReader(data))
@@ -368,7 +379,7 @@ func (md *MapData) CheckItemCollection(player *Player, g *Game) {
 			Img:    portalImg,
 			Active: true,
 		}
-		log.Println("🌀 Portal spawned randomly! Text remains at last collected fish.")
+		log.Println(" Portal spawned randomly! Text remains at last collected fish.")
 	}
 
 	// --- Unified bad item collision ---
@@ -377,7 +388,8 @@ func (md *MapData) CheckItemCollection(player *Player, g *Game) {
 		badRect := makeBadItemRect(bad.X, bad.Y, bad.Img)
 		if player.Box.IsIntersecting(badRect) {
 			md.BadItems = nil
-			GameOver = true
+			g.State = StateGameOver
+			g.initGameOverPlayer()
 			log.Println("💀 Hit a bad can — GAME OVER")
 			return
 		}
